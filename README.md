@@ -4,7 +4,7 @@ A java tool that can be used to upload pictures to an instance of the picture sh
 
 ## Usage
 
-Best way to import the code would probably be to load it as a [submodule like decribed here](https://git-scm.com/book/en/v2/Git-Tools-Submodules).
+Best way to import the code would probably be to load it as a [submodule like described here](https://git-scm.com/book/en/v2/Git-Tools-Submodules).
 You can then use it in your project by calling the LycheeUploaderHttp-class.
 If you just want to copy the code without making it a submodule make sure that all dependencies specified in the pom.xml are available.
 
