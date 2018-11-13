@@ -21,6 +21,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
 
 // TODO: choose consistent way of returning results. Preferably refrain from passing out JSON-objects since these are not native and just another dependency for bigger projects.
@@ -40,6 +41,7 @@ public class LycheeUploaderHttp {
      * @throws AuthenticationException if username and password are wrong or some other error like an internal server error occur (status other than 200 gets returned).
      */
     public LycheeUploaderHttp(String serverAddress, String username, String password) throws IOException, AuthenticationException {
+
         // Remove trailing slashes from the server address
         this.serverAddress = serverAddress.replaceAll("/+$","");
 
@@ -49,8 +51,14 @@ public class LycheeUploaderHttp {
     }
 
 
-    public JSONArray getStandardAlbums() throws IOException {
-        return getAllAlbums().getJSONArray("albums");
+    public List<Album> getStandardAlbums() throws IOException {
+        List<NameValuePair> params = new ArrayList<>();
+        params.add(new BasicNameValuePair("function", "Albums::get"));
+        HttpResponse res = runRequest(params);
+
+        this.checkStatusCode(res);
+
+        return responseToAlbumList(res);
     }
 
     public JSONObject getSmartAlbums() throws IOException {
@@ -68,7 +76,7 @@ public class LycheeUploaderHttp {
     }
 
     // TODO: change return type to something that is not protocol specific.
-    public HttpResponse getAlbumById(String id) throws IOException {
+    public HttpResponse getAlbumNameById(String id) throws IOException {
 
         List<NameValuePair> params = new ArrayList<>();
         params.add(new BasicNameValuePair("function", "Album::get"));
@@ -78,6 +86,55 @@ public class LycheeUploaderHttp {
         HttpResponse res = runRequest(params);
 
         return res;
+
+    }
+
+    /**
+     * Uploads an image to the Lychee-Server. Allowed file endings are JPEG, JPG, PNG and GIF.
+     *
+     * @param albumId the ID of the album to which the image should be added.
+     * @param filePath the path to the image that should be uploaded.
+     * @return the ID of the image after uploading.
+     * @throws IOException if the file can't be found, is not an image or a server error occurs.
+     */
+    public int uploadImage(String albumId, String filePath) throws IOException {
+
+        File image = new File(filePath);
+        String fileName = image.getName();
+
+        if(!image.isFile() ){
+            throw new IOException("Path does not point to a file.");
+        }
+
+        ContentType imageType;
+
+        if ( fileName.toLowerCase().endsWith("jpg") || fileName.toLowerCase().endsWith("jpeg") ) {
+            imageType = ContentType.IMAGE_JPEG;
+        } else if (fileName.toLowerCase().endsWith("png")){
+            imageType = ContentType.IMAGE_PNG;
+        } else if (fileName.toLowerCase().endsWith("gif")){
+            imageType = ContentType.IMAGE_GIF;
+        } else {
+            throw new IOException("File is not an image of allowed types JPG,JPEG,GIF or PNG");
+        }
+
+        MultipartEntityBuilder builder = MultipartEntityBuilder.create();
+
+        builder.addTextBody("function","Photo::add");
+        builder.addTextBody("albumID",albumId);
+        builder.addBinaryBody("0", new File(filePath), imageType, filePath);
+
+        HttpResponse response = runRequest(builder.build());
+
+        checkStatusCode(response);
+
+        String resBody = getResponseBodyAsString(response);
+
+        if (isInteger(resBody)){
+            return Integer.getInteger(resBody);
+        } else {
+            throw new IOException("Could not upload picture. Server Response: "+ resBody);
+        }
 
     }
 
@@ -96,10 +153,7 @@ public class LycheeUploaderHttp {
 
         checkStatusCode(response);
 
-        String albumId = getResponseBodyAsString(response);
-
-        return albumId;
-
+        return getResponseBodyAsString(response);
     }
 
     /**
@@ -213,6 +267,56 @@ public class LycheeUploaderHttp {
         if(statusCode<200 || statusCode > 299){
             throw new HttpResponseException(statusCode, "Statuscode is not 2xx.");
         }
+    }
+
+
+    /**
+     * Converts an HTTPResponse to a list of Album objects.
+     *
+     * @param response the response to a call on the function "Albums::get"
+     * @return a list of Album objects
+     * @throws IOException If an error occurs during the server call.
+     */
+    private List<Album> responseToAlbumList(HttpResponse response) throws IOException {
+
+        JSONObject resJSON = getResponseBodyAsJSON(response);
+
+        JSONArray albumsArrray = resJSON.getJSONArray("albums");
+
+        List<Album> albumList = new LinkedList<>();
+
+        for (Object albumObj: albumsArrray ) {
+            JSONObject albumJSON = (JSONObject) albumObj;
+
+            boolean passwordProtected = !"0".equals(albumJSON.get("password"));
+
+            albumList.add(new Album(albumJSON.getString("id"),albumJSON.getString("title"),passwordProtected));
+
+        }
+
+        return albumList;
+    }
+
+
+    /**
+     * Checks if a String is an integer of base 10.
+     * @param s the number to check.
+     * @return true if the number is an integer, false otherwise.
+     */
+    private static boolean isInteger(String s) {
+        int radix = 10;
+
+        if(s == null || s.isEmpty()) return false;
+
+        for(int i = 0; i < s.length(); i++) {
+            if(i == 0 && s.charAt(i) == '-') {
+                if(s.length() == 1) return false;
+                else continue;
+            }
+            if(Character.digit(s.charAt(i),radix) < 0) return false;
+        }
+
+        return true;
     }
 
 }
