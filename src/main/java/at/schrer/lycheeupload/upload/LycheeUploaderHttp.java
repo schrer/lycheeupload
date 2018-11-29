@@ -138,6 +138,7 @@ public class LycheeUploaderHttp {
 
     }
 
+
     /**
      * Creates a new album on the server with the given name. The password has to be set with {@link #setAlbumAccess(String, String, boolean, boolean, boolean)} separately.
      * @param title the title of the new album
@@ -170,33 +171,13 @@ public class LycheeUploaderHttp {
         List<NameValuePair> params = new ArrayList<>();
         params.add(new BasicNameValuePair("function", "Album::setPublic"));
         params.add(new BasicNameValuePair("albumID", albumID));
-        params.add(new BasicNameValuePair("password", (password==null)?"":password));
-        params.add(new BasicNameValuePair("downloadable", (setDownloadable)?"1":"0"));
-        params.add(new BasicNameValuePair("public", (setPublic)?"1":"0"));
-        params.add(new BasicNameValuePair("visible", (setVisible)?"1":"0"));
+        params.add(new BasicNameValuePair("password", (password == null) ? "" : password));
+        params.add(new BasicNameValuePair("downloadable", (setDownloadable) ? "1" : "0"));
+        params.add(new BasicNameValuePair("public", (setPublic) ? "1" : "0"));
+        params.add(new BasicNameValuePair("visible", (setVisible) ? "1" : "0"));
 
         HttpResponse response = runRequest(params);
         checkStatusCode(response);
-    }
-
-    public void addPhotoToAlbum(String filepath, String albumId) throws IOException {
-
-        File photo = new File(filepath);
-
-        if(!photo.isFile()){
-            throw new IOException("Can't find file in path "+filepath);
-        }
-
-
-        MultipartEntityBuilder builder = MultipartEntityBuilder.create();
-        builder.addTextBody("function", "Photo::add");
-        builder.addTextBody("albumID", albumId);
-        builder.addBinaryBody("0", new File(filepath), ContentType.APPLICATION_OCTET_STREAM, filepath);
-        HttpEntity multipart = builder.build();
-
-        HttpResponse res = runRequest(multipart);
-
-        checkStatusCode(res);
     }
 
     /**
