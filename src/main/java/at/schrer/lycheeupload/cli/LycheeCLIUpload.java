@@ -179,8 +179,9 @@ public class LycheeCLIUpload {
         String usage = "Usage: java -jar lycheeUpload.jar [-u <filepath> <albumId> | -l ]\n" +
                 " --user <username> --password <password> --server <serverAddress>\n" +
                 "\n"+
-                "-u <filepath> <albumId> to upload an image\n"+
-                "-l to list albums available on the server";
+                "Options:\n"+
+                "   -u <filepath> <albumId> to upload an image\n"+
+                "   -l to list albums available on the server";
 
         writeToStdOut(usage);
         System.exit(1);
