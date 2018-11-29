@@ -9,9 +9,6 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 
-/**
-* WIP! Not usable, basically just a stub.
-*/
 public class LycheeCLIUpload {
 
     private static Logger LOGGER = Logger.getLogger(LycheeCLIUpload.class.getName());
@@ -29,7 +26,6 @@ public class LycheeCLIUpload {
             LOGGER.log(Level.SEVERE, "Error while logging in. Check your login data", e);
         }
 
-
     }
 
 
@@ -43,7 +39,7 @@ public class LycheeCLIUpload {
     private static void runOnArgs(String args[]) throws IOException, AuthenticationException {
 
         if(args.length < 2){
-            writeToStdErrAndExit("Too few arguments.");
+            writeUsage();
         }
 
         //Check for supported operations
@@ -51,7 +47,7 @@ public class LycheeCLIUpload {
             case "-u":
                 uploadImage(args);
                 return;
-            case "-g":
+            case "-l":
                 getStandardAlbums(args);
                 return;
             case "-c":
@@ -85,6 +81,12 @@ public class LycheeCLIUpload {
 
     }
 
+    /**
+     * Upload an image to the server.
+     * @param args the arguments passed to the program.
+     * @throws IOException if an error occurs during communication with the server.
+     * @throws AuthenticationException if an error occurs during authentication.
+     */
     private static void uploadImage(String args[]) throws IOException, AuthenticationException {
 
         LycheeUploaderHttp lup = login(args);
@@ -154,7 +156,7 @@ public class LycheeCLIUpload {
     }
 
     /**
-     * Write to stdout
+     * Write message to stdout.
      * @param output the message.
      */
     private static void writeToStdOut(String output){
@@ -167,6 +169,20 @@ public class LycheeCLIUpload {
      */
     private static void writeToStdErrAndExit(String output){
         System.err.println(output);
+        System.exit(1);
+    }
+
+    /**
+     * Write usage instructions and exit with exit code 1.
+     */
+    private static void writeUsage(){
+        String usage = "Usage: java -jar lycheeUpload.jar [-u <filepath> <albumId> | -l ]\n" +
+                " --user <username> --password <password> --server <serverAddress>\n" +
+                "\n"+
+                "-u <filepath> <albumId> to upload an image\n"+
+                "-l to list albums available on the server";
+
+        writeToStdOut(usage);
         System.exit(1);
     }
 }
