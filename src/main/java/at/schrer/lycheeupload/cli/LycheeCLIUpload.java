@@ -1,40 +1,172 @@
 package at.schrer.lycheeupload.cli;
 
+import at.schrer.lycheeupload.upload.Album;
 import at.schrer.lycheeupload.upload.LycheeUploaderHttp;
 import org.apache.http.auth.AuthenticationException;
-import org.json.JSONArray;
 import java.io.IOException;
-
+import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 
 /**
 * WIP! Not usable, basically just a stub.
 */
 public class LycheeCLIUpload {
-    public static void main(String args[]){
 
-        // Read these and eventual other paramters from the passed arguments.
-        String serverAddress = "";
-        String username = "";
-        String password = "";
-        String picturepath = "";
+    private static Logger LOGGER = Logger.getLogger(LycheeCLIUpload.class.getName());
+
+    public static void main(String args[]){
 
 
         try {
-            LycheeUploaderHttp lup = new LycheeUploaderHttp(serverAddress,username,password);
-            JSONArray res = lup.getStandardAlbums();
 
-            // TODO: call correct operation specified in arguments
+            runOnArgs(args);
 
-            res.toString();
         } catch (IOException e) {
-            // TODO: notify the user of errors, maybe file not found or problems during reading/writing responses/requests
-            e.printStackTrace();
+            LOGGER.log(Level.SEVERE,"Error in server communication.",e);
         } catch (AuthenticationException e) {
-            // TODO: notify user of error during authentication
-            e.printStackTrace();
+            LOGGER.log(Level.SEVERE, "Error while logging in. Check your login data", e);
         }
 
 
+    }
+
+
+    /**
+     * Run the operations specified in arguments.
+     *
+     * @param args the arguments passed to the program.
+     * @throws IOException if an error occurs during communication with the server.
+     * @throws AuthenticationException if an error occurs during authentication.
+     */
+    private static void runOnArgs(String args[]) throws IOException, AuthenticationException {
+
+        if(args.length < 2){
+            writeToStdErrAndExit("Too few arguments.");
+        }
+
+        //Check for supported operations
+        switch (args[0]){
+            case "-u":
+                uploadImage(args);
+                return;
+            case "-g":
+                getStandardAlbums(args);
+                return;
+            case "-c":
+                writeToStdErrAndExit("Album creation not yet supported on commandline.\n");
+                return;
+            default:
+                writeToStdErrAndExit("Unknown operation: "+args[1] + "\n");
+        }
+    }
+
+
+    /**
+     * Get and print a list of standard albums on the Lychee server.
+     * @param args the arguments passed to the program.
+     * @throws IOException if an error occurs during communication with the server.
+     */
+    private static void getStandardAlbums(String args[]) throws IOException, AuthenticationException {
+
+        LycheeUploaderHttp lup = login(args);
+
+        List<Album> albums = lup.getStandardAlbums();
+
+        StringBuilder albumOutput = new StringBuilder();
+
+        for (Album album: albums) {
+            albumOutput.append(album.toString());
+            albumOutput.append("\n");
+        }
+
+        writeToStdOut(albumOutput.toString());
+
+    }
+
+    private static void uploadImage(String args[]) throws IOException, AuthenticationException {
+
+        LycheeUploaderHttp lup = login(args);
+
+        String filePath = args[1];
+        String albumId = args[2];
+
+        String imageId = lup.uploadImage(albumId, filePath);
+
+        writeToStdOut("Image ID: " + imageId);
+    }
+
+    /**
+     * Finds username, password and server address from the arguments given to the program.
+     *
+     * @param args all arguments given to the program.
+     * @return array with username (index=0), password (index=1), server address (index=2).
+     * @throws IllegalArgumentException if either username, password or server address is not specified.
+     */
+    private static String[] getLoginData(String args[]) throws IllegalArgumentException {
+
+        String userPwInput[] = new String[3];
+        boolean foundUser=false;
+        boolean foundPassword=false;
+        boolean foundServer=false;
+
+
+        // Loop through arguments to check for user/password/server
+        for (int i=1; i<args.length-1; i++){
+            if ("--user".equals(args[i])) {
+                userPwInput[0]=args[i+1];
+                foundUser=true;
+            }
+
+            else if ("--password".equals(args[i])){
+                userPwInput[1]=args[i+1];
+                foundPassword=true;
+            }
+
+            else if ("--server".equals(args[i])){
+                userPwInput[2]=args[i+1];
+                foundServer=true;
+            }
+        }
+
+        // Throw Exception if login data is not complete
+        if (!foundUser || !foundPassword || !foundServer){
+            throw new IllegalArgumentException("You need to specify username, password and server address with options \"--user\", \"--password\" and \"--server\"");
+        }
+
+        return userPwInput;
+    }
+
+    /**
+     * Authenticate with the server to get a valid LycheeUploaderHttp-object.
+     * @param args the arguments passed to the program.
+     * @return the authenticated uploader.
+     * @throws IOException if an error occurs during communication with the server.
+     * @throws AuthenticationException if an error occurs during authentication.
+     */
+    private static LycheeUploaderHttp login(String args[]) throws IOException, AuthenticationException {
+
+        String loginData[] = getLoginData(args);
+
+        return new LycheeUploaderHttp(loginData[2],loginData[0],loginData[1]);
+
+    }
+
+    /**
+     * Write to stdout
+     * @param output the message.
+     */
+    private static void writeToStdOut(String output){
+        System.out.print(output);
+    }
+
+    /**
+     * Write to stderr and exit the program with exit status 1.
+     * @param output error message to write.
+     */
+    private static void writeToStdErrAndExit(String output){
+        System.err.println(output);
+        System.exit(1);
     }
 }
