@@ -97,7 +97,7 @@ public class LycheeUploaderHttp {
      * @return the ID of the image after uploading.
      * @throws IOException if the file can't be found, is not an image or a server error occurs.
      */
-    public int uploadImage(String albumId, String filePath) throws IOException {
+    public String uploadImage(String albumId, String filePath) throws IOException {
 
         File image = new File(filePath);
         String fileName = image.getName();
@@ -131,7 +131,7 @@ public class LycheeUploaderHttp {
         String resBody = getResponseBodyAsString(response);
 
         if (isInteger(resBody)){
-            return Integer.getInteger(resBody);
+            return resBody;
         } else {
             throw new IOException("Could not upload picture. Server Response: "+ resBody);
         }
