@@ -19,7 +19,7 @@ The CLI apllication does not support all operations, that are available in the L
 
 ```
 java -jar lycheeUpload.jar [-u <filepath> <albumId> | -l ]
-  --user <username> --password <password> --server <serverAddress>
+  [--user <username>] [--password <password>] [--server <serverAddress>] [--config <path>]
 
 Options:
   -u <filepath> <albumId> to upload an image\n

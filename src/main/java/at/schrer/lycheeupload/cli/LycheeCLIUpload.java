@@ -2,6 +2,7 @@ package at.schrer.lycheeupload.cli;
 
 import at.schrer.lycheeupload.upload.Album;
 import at.schrer.lycheeupload.upload.LycheeUploaderHttp;
+import at.schrer.lycheeupload.util.LoginConfig;
 import org.apache.http.auth.AuthenticationException;
 import java.io.IOException;
 import java.util.List;
@@ -11,9 +12,11 @@ import java.util.logging.Logger;
 
 public class LycheeCLIUpload {
 
-    private static Logger LOGGER = Logger.getLogger(LycheeCLIUpload.class.getName());
+    private static final Logger LOGGER = Logger.getLogger(LycheeCLIUpload.class.getName());
 
-    public static void main(String args[]){
+    private static final String DEFAULT_CONFIG_PATH = System.getProperty("user.home")+"/.config/lycheeupload.conf";
+
+    public static void main(String[] args){
 
 
         try {
@@ -36,7 +39,7 @@ public class LycheeCLIUpload {
      * @throws IOException if an error occurs during communication with the server.
      * @throws AuthenticationException if an error occurs during authentication.
      */
-    private static void runOnArgs(String args[]) throws IOException, AuthenticationException {
+    private static void runOnArgs(String[] args) throws IOException, AuthenticationException {
 
         if(args.length < 2){
             writeUsage();
@@ -64,7 +67,7 @@ public class LycheeCLIUpload {
      * @param args the arguments passed to the program.
      * @throws IOException if an error occurs during communication with the server.
      */
-    private static void getStandardAlbums(String args[]) throws IOException, AuthenticationException {
+    private static void getStandardAlbums(String[] args) throws IOException, AuthenticationException {
 
         LycheeUploaderHttp lup = login(args);
 
@@ -87,7 +90,7 @@ public class LycheeCLIUpload {
      * @throws IOException if an error occurs during communication with the server.
      * @throws AuthenticationException if an error occurs during authentication.
      */
-    private static void uploadImage(String args[]) throws IOException, AuthenticationException {
+    private static void uploadImage(String[] args) throws IOException, AuthenticationException {
 
         LycheeUploaderHttp lup = login(args);
 
@@ -101,43 +104,64 @@ public class LycheeCLIUpload {
 
     /**
      * Finds username, password and server address from the arguments given to the program.
+     * Values given be option ("--user","--password",...) will be selected over values from config files.
      *
      * @param args all arguments given to the program.
-     * @return array with username (index=0), password (index=1), server address (index=2).
-     * @throws IllegalArgumentException if either username, password or server address is not specified.
+     * @return complete login information.
+     * @throws IOException if the given config file can't be read or if either username, password or server address is not specified.
      */
-    private static String[] getLoginData(String args[]) throws IllegalArgumentException {
+    private static LoginConfig getLoginData(String[] args) throws IOException {
 
-        String userPwInput[] = new String[3];
-        boolean foundUser=false;
-        boolean foundPassword=false;
-        boolean foundServer=false;
+        LoginConfig loginConfig = createConfigFromFile(args);
 
 
         // Loop through arguments to check for user/password/server
         for (int i=1; i<args.length-1; i++){
+
             if ("--user".equals(args[i])) {
-                userPwInput[0]=args[i+1];
-                foundUser=true;
+                loginConfig.setUsername(args[i+1]);
             }
 
             else if ("--password".equals(args[i])){
-                userPwInput[1]=args[i+1];
-                foundPassword=true;
+                loginConfig.setPassword(args[i+1]);
             }
 
             else if ("--server".equals(args[i])){
-                userPwInput[2]=args[i+1];
-                foundServer=true;
+                loginConfig.setServerAddress(args[i+1]);
             }
+
         }
 
         // Throw Exception if login data is not complete
-        if (!foundUser || !foundPassword || !foundServer){
-            throw new IllegalArgumentException("You need to specify username, password and server address with options \"--user\", \"--password\" and \"--server\"");
+        if (!loginConfig.isComplete()){
+            throw new IOException("You need to specify username, password and server address with options or a config file.");
         }
 
-        return userPwInput;
+        return loginConfig;
+    }
+
+    /**
+     * Checks if the arguments contain a path to a config file and will load it. If no path is given, the default path is tried, if there is no file, an empty LoginConfig will be returned.
+     * The default path is "USERHOME/.config/lycheeupload.conf".
+     * @param args the arguments passed to the program.
+     * @return the available login information.
+     */
+    private static LoginConfig createConfigFromFile(String[] args) throws IOException {
+        for (int i=1; i<args.length-1; i++){
+            if ("--config".equals(args[i])) {
+                return new LoginConfig(args[i+1]);
+            }
+        }
+
+        try {
+            return new LoginConfig(DEFAULT_CONFIG_PATH);
+
+        } catch (IOException e){
+            LOGGER.log(Level.INFO, "Unable to open default config path. Will use empty config.",e);
+        }
+
+        // Will only be used if neither a default config file, nor a file given by arguments exist.
+        return new LoginConfig();
     }
 
     /**
@@ -147,11 +171,11 @@ public class LycheeCLIUpload {
      * @throws IOException if an error occurs during communication with the server.
      * @throws AuthenticationException if an error occurs during authentication.
      */
-    private static LycheeUploaderHttp login(String args[]) throws IOException, AuthenticationException {
+    private static LycheeUploaderHttp login(String[] args) throws IOException, AuthenticationException {
 
-        String loginData[] = getLoginData(args);
+        LoginConfig loginData= getLoginData(args);
 
-        return new LycheeUploaderHttp(loginData[2],loginData[0],loginData[1]);
+        return new LycheeUploaderHttp(loginData.getServerAddress(),loginData.getUsername(),loginData.getPassword());
 
     }
 
@@ -177,7 +201,7 @@ public class LycheeCLIUpload {
      */
     private static void writeUsage(){
         String usage = "Usage: java -jar lycheeUpload.jar [-u <filepath> <albumId> | -l ]\n" +
-                " --user <username> --password <password> --server <serverAddress>\n" +
+                " [--user <username>] [--password <password>] [--server <serverAddress>] [--config <path>]\n" +
                 "\n"+
                 "Options:\n"+
                 "   -u <filepath> <albumId> to upload an image\n"+
